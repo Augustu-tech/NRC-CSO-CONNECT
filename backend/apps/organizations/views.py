@@ -1,7 +1,9 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import PermissionDenied
+
 from apps.accounts.audit_mixin import AuditMixin
 from apps.accounts.permissions import (
     RoleBasedPermissionsMixin, IsSuperAdmin,
@@ -45,7 +47,7 @@ class SemesterViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewS
 
 
 class MphakatiViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet):
-    read_permission_classes = [IsAuthenticated]
+    read_permission_classes = [AllowAny]
     write_permission_classes = [IsSuperAdmin]
     queryset = Mphakati.objects.all()
     serializer_class = MphakatiSerializer
@@ -56,6 +58,18 @@ class AffiliateViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelView
     write_permission_classes = [CanManageAffiliates]
     queryset = Affiliate.objects.all()
     serializer_class = AffiliateSerializer
+
+    def get_queryset(self):
+        qs = Affiliate.objects.all()
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return qs.none()
+        if user.is_superuser or user.role in ("super_admin", "chairperson", "vice_chairperson", "secretary", "auditor"):
+            return qs
+        if user.role == "affiliate_coordinator" and user.member_id:
+            # Only show affiliates where THIS member is the officially assigned coordinator
+            return qs.filter(coordinator_id=user.member_id)
+        return qs.none()
 
 
 class AffiliateMembershipViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet):
@@ -69,10 +83,25 @@ class AffiliateMembershipViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets
         user = self.request.user
         if not user or not user.is_authenticated:
             return qs.none()
-        if user.is_superuser or user.role in ("super_admin", "chairperson", "vice_chairperson"):
+        if user.is_superuser or user.role in ("super_admin", "chairperson", "vice_chairperson", "secretary", "auditor"):
             return qs
-        if user.role == "affiliate_coordinator":
-            # For simplicity in this version, a coordinator can manage all affiliates.
-            # In a stricter production version, you would link a coordinator to a specific affiliate.
-            return qs
+        if user.role == "affiliate_coordinator" and user.member_id:
+            # Only show members in affiliates this user coordinates
+            my_coordinated_aff = Affiliate.objects.filter(coordinator_id=user.member_id).values_list("id", flat=True)
+            return qs.filter(affiliate_id__in=my_coordinated_aff)
         return qs.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == "affiliate_coordinator" and user.member_id:
+            target_affiliate = serializer.validated_data.get("affiliate")
+            if target_affiliate.coordinator_id != user.member_id:
+                raise PermissionDenied("You can only manage members in the affiliate you coordinate.")
+        super().perform_create(serializer)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if user.role == "affiliate_coordinator" and user.member_id:
+            if instance.affiliate.coordinator_id != user.member_id:
+                raise PermissionDenied("You can only manage members in the affiliate you coordinate.")
+        super().perform_destroy(instance)

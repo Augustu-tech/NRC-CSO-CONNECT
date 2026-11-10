@@ -12,11 +12,13 @@ import { Modal } from "../ui/Modal";
 export default function AffiliatesPage() {
   const { me } = useAuth();
   const canManage = hasPerm(me, "affiliates.manage");
+  const userRole = me?.role;
 
   const [affiliates, setAffiliates] = useState<any[]>([]);
   const [selectedAff, setSelectedAff] = useState<any>(null);
   const [memberships, setMemberships] = useState<any[]>([]);
   const [allMembers, setAllMembers] = useState<any[]>([]);
+  const [updatingCoord, setUpdatingCoord] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Add member modal
@@ -49,6 +51,24 @@ export default function AffiliatesPage() {
   useEffect(() => {
     if (selectedAff) loadMemberships(selectedAff.id);
   }, [selectedAff]);
+
+  const handleSetCoordinator = async (memberId: number | null) => {
+    if (!selectedAff) return;
+    setUpdatingCoord(true);
+    try {
+      await api.patch(`/organizations/affiliates/${selectedAff.id}/`, {
+        coordinator: memberId
+      });
+      // Refresh the selected affiliate data
+      const res = await api.get(`/organizations/affiliates/${selectedAff.id}/`);
+      setSelectedAff(res.data);
+      loadAffiliates(); // Also updates the left sidebar list
+    } catch {
+      alert("Failed to update coordinator.");
+    } finally {
+      setUpdatingCoord(false);
+    }
+  };
 
   const handleAddMember = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -119,14 +139,31 @@ export default function AffiliatesPage() {
         {/* Members Panel */}
         <div className="lg:col-span-2">
           <Card className="overflow-hidden h-full">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                   <Users size={18} /> {selectedAff?.name} Members
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {memberships.length} active member(s)
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-slate-500 font-medium">Coordinator:</span>
+                  {canManage && userRole !== "affiliate_coordinator" ? (
+                    <select 
+                      value={selectedAff?.coordinator || ""} 
+                      onChange={(e) => handleSetCoordinator(e.target.value ? Number(e.target.value) : null)}
+                      disabled={updatingCoord}
+                      className="text-xs border border-slate-300 rounded px-2 py-1 bg-white focus:ring-2 focus:ring-faith-500"
+                    >
+                      <option value="">Unassigned</option>
+                      {allMembers.map((m: any) => (
+                        <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs font-semibold text-faith-700">
+                      {selectedAff?.coordinator_name || "Unassigned"}
+                    </span>
+                  )}
+                </div>
               </div>
               {canManage && (
                 <Button onClick={() => setIsModalOpen(true)}>

@@ -39,16 +39,86 @@ class MemberViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet
                 mphakati_memberships__mphakati_id__in=my_mph,
                 mphakati_memberships__is_current=True,
             ).distinct()
-        if user.role == "affiliate_coordinator" and user.member_id:
-            from apps.organizations.models import AffiliateMembership
-            my_aff = AffiliateMembership.objects.filter(
-                member_id=user.member_id, is_active=True
-            ).values_list("affiliate_id", flat=True)
-            return qs.filter(
-                affiliate_memberships__affiliate_id__in=my_aff,
-                affiliate_memberships__is_active=True,
-            ).distinct()
+        if user.role == "affiliate_coordinator":
+            # Coordinators need to see all ACTIVE members to be able to add them to their affiliate.
+            # Write restrictions are enforced in AffiliateMembershipViewSet.
+            return qs.filter(status__iexact="ACTIVE")
         return qs.none()
+
+
+    @action(detail=True, methods=["get"])
+    def profile_data(self, request, pk=None):
+        """Return full profile, participation, contribution, and rank data for any member."""
+        member = self.get_object()
+        
+        # 1. Base profile data
+        from .serializers import MemberSerializer
+        profile_data = MemberSerializer(member).data
+        membership = MphakatiMembership.objects.filter(member=member, is_current=True).select_related("mphakati", "semester").first()
+        
+        if membership:
+            profile_data["current_mphakati"] = {"id": membership.mphakati.id, "name": membership.mphakati.name}
+            profile_data["current_semester"] = {"id": membership.semester.id, "label": str(membership.semester)}
+        else:
+            profile_data["current_mphakati"] = None
+            profile_data["current_semester"] = None
+
+        # 2. Participation
+        from apps.activities.models import Participation
+        parts = Participation.objects.filter(member=member).select_related("activity", "activity__category")
+        total = parts.count()
+        present = parts.filter(status__in=["PRESENT", "LATE", "PARTICIPATED", "SERVED", "CONTRIBUTED"]).count()
+        excused = parts.filter(status="EXCUSED").count()
+        absent = parts.filter(status="ABSENT").count()
+        denom = max(total - excused, 1)
+        rate = round((present / denom) * 100, 2) if total else 0.0
+        
+        participation = {
+            "total_records": total,
+            "present": present,
+            "excused": excused,
+            "absent": absent,
+            "participation_rate": rate,
+            "history": [{"activity_id": p.activity_id, "title": p.activity.title, "date": p.activity.date.isoformat(), "category": p.activity.category.name, "status": p.status} for p in parts.order_by("-activity__date")[:20]]
+        }
+
+        # 3. Contributions
+        from apps.finance.models import FinanceTransaction
+        from decimal import Decimal
+        txs = FinanceTransaction.objects.filter(member=member).select_related("category").order_by("-transaction_date")
+        total_income = sum((t.amount for t in txs if t.transaction_type.upper() == "INCOME"), Decimal("0"))
+        contributions = {
+            "total_contributed": float(total_income),
+            "record_count": txs.count(),
+            "history": [{"id": t.id, "date": t.transaction_date.isoformat(), "type": t.transaction_type, "category": t.category.name, "amount": float(t.amount), "reference": t.reference_number} for t in txs[:20]]
+        }
+
+        # 4. Rank (if membership exists)
+        rank = None
+        if membership:
+            from apps.activities.models import ScoringConfiguration
+            from apps.activities.scoring import calculate_leaderboard
+            configs = ScoringConfiguration.objects.filter(semester=membership.semester).order_by("-month")
+            for cfg in configs:
+                cards = calculate_leaderboard(cfg)
+                my_card = next((c for c in cards if c.mphakati_id == membership.mphakati_id), None)
+                if my_card and my_card.final_score is not None:
+                    rank = {
+                        "semester": str(membership.semester),
+                        "month": cfg.month.isoformat(),
+                        "mphakati": membership.mphakati.name,
+                        "rank": my_card.rank,
+                        "final_score": float(my_card.final_score),
+                        "out_of": len(cards)
+                    }
+                    break
+
+        return Response({
+            "profile": profile_data,
+            "participation": participation,
+            "contributions": contributions,
+            "rank": rank
+        })
 
     @action(detail=True, methods=["post"])
     def transfer(self, request, pk=None):
@@ -68,7 +138,10 @@ class MemberViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet
         today = timezone.now().date()
         
         # Check if they are already in this semester
-        existing = MphakatiMembership.objects.filter(member=member, semester=semester).first()
+        existing = MphakatiMembership.objects.filter(member=member, semester=semester, is_current=True).first()
+        
+        if existing and existing.mphakati == new_mphakati:
+            return Response({"detail": f"Member is already in {new_mphakati.name}."}, status=400)
         
         if existing:
             # Update the existing record (same semester transfer)

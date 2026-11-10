@@ -1,11 +1,14 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework_simplejwt.views import (
     TokenObtainPairView, TokenRefreshView, TokenBlacklistView,
 )
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts import me_views as mev
+from apps.accounts.auth_views import CustomTokenObtainPairView, register, forgot_password, reset_password_confirm
 from apps.accounts.audit_views import AuditLogViewSet
 from apps.activities import dashboard_views as dash
 from apps.activities import export_views as exp
@@ -18,7 +21,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     
     # Auth
-    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/register/", register, name="auth-register"),
+    path("api/auth/forgot-password/", forgot_password, name="auth-forgot-password"),
+    path("api/auth/reset-password/", reset_password_confirm, name="auth-reset-password"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/auth/token/blacklist/", TokenBlacklistView.as_view(), name="token_blacklist"),
     path("api/auth/me/", mev.me, name="auth-me"),
@@ -29,6 +35,7 @@ urlpatterns = [
     path("api/activities/", include("apps.activities.urls")),
     path("api/finance/", include("apps.finance.urls")),
     path("api/engagement/", include("apps.engagement.urls")),
+    path("api/", include("apps.elections.urls")),
     
     # Dashboards
     path("api/dashboard/overview/", dash.overview, name="dashboard-overview"),
@@ -44,3 +51,6 @@ urlpatterns = [
 
 # Add router URLs (Audit Logs)
 urlpatterns += router.urls
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

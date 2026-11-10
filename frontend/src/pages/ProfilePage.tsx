@@ -1,6 +1,9 @@
-import { FormEvent, useEffect, useState } from "react";
-import { User, Trophy, CheckCircle2, XCircle, MinusCircle, Edit2 } from "lucide-react";
-import { getMyProfile, getMyParticipation, getMyContributions, getMyRank, updateMyProfile, type MemberProfile } from "../api/client";
+import { FormEvent, useEffect, useState, useRef } from "react";
+import { User, CheckCircle2, XCircle, MinusCircle, Edit2, Camera } from "lucide-react";
+import { 
+  getMyProfile, getMyParticipation, getMyContributions, getMyRank, 
+  updateMyProfile, uploadProfilePicture, getMediaUrl, type MemberProfile 
+} from "../api/client";
 import { Card } from "../ui/Card";
 import { PageHeader } from "../ui/PageHeader";
 import { EmptyState } from "../ui/EmptyState";
@@ -18,23 +21,29 @@ export default function ProfilePage() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
-    Promise.all([
+    Promise.allSettled([
       getMyProfile(),
       getMyParticipation(),
       getMyContributions(),
       getMyRank()
     ]).then(([pRes, ptRes, coRes, rRes]) => {
-      setProfile(pRes.data);
-      setParticipation(ptRes.data);
-      setContributions(coRes.data);
-      setRank(rRes.data);
-    }).catch((err) => {
-      if (err.response?.status === 403) {
-        setError("This account is not linked to a member profile. Please contact the Secretary.");
-      } else {
-        setError("Failed to load profile data.");
+      if (pRes.status === "fulfilled") setProfile(pRes.value.data);
+      if (ptRes.status === "fulfilled") setParticipation(ptRes.value.data);
+      if (coRes.status === "fulfilled") setContributions(coRes.value.data);
+      if (rRes.status === "fulfilled") setRank(rRes.value.data);
+
+      // Only show fatal error if profile itself failed
+      if (pRes.status === "rejected") {
+        const err: any = pRes.reason;
+        if (err.response?.status === 403) {
+          setError("This account is not linked to a member profile. Please contact the Secretary.");
+        } else {
+          setError("Failed to load profile data.");
+        }
       }
     }).finally(() => setLoading(false));
   };
@@ -61,8 +70,30 @@ export default function ProfilePage() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be smaller than 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      await uploadProfilePicture(file);
+      load();
+    } catch {
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-slate-500">Loading profile…</div>;
   if (error) return <Card className="p-8 text-center text-red-600">{error}</Card>;
+
+  const imageUrl = getMediaUrl((profile as any)?.profile_picture);
 
   return (
     <div className="space-y-6">
@@ -77,13 +108,36 @@ export default function ProfilePage() {
       />
 
       <Card className="p-6">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 bg-faith-100 text-faith-700 rounded-full flex items-center justify-center">
-            <User size={32} />
+        <div className="flex items-center gap-6">
+          <div className="relative group">
+            <div className="h-24 w-24 rounded-full overflow-hidden bg-faith-100 flex items-center justify-center border-4 border-white shadow-md">
+              {imageUrl ? (
+                <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                <User size={40} className="text-faith-700" />
+              )}
+            </div>
+            
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute inset-0 bg-black/50 text-white rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:opacity-100 disabled:bg-black/70"
+            >
+              <Camera size={20} className="mb-1" />
+              <span className="text-[10px] font-medium">{uploading ? "Uploading..." : "Change"}</span>
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImageUpload} 
+              accept="image/*" 
+              className="hidden" 
+            />
           </div>
+
           <div>
-            <h2 className="text-xl font-bold text-slate-900">{profile?.full_name}</h2>
-            <p className="text-sm text-slate-500">
+            <h2 className="text-2xl font-bold text-slate-900">{profile?.full_name}</h2>
+            <p className="text-sm text-slate-500 font-medium">
               {profile?.student_id} · {profile?.current_mphakati?.name}
             </p>
             <p className="text-xs text-slate-400 mt-1 uppercase tracking-wide">
@@ -94,28 +148,17 @@ export default function ProfilePage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {rank && (
-          <Stat 
-            label="Mphakati Rank" 
-            value={`#${rank.rank} of ${rank.out_of}`} 
-            hint={`Score: ${rank.final_score}%`}
-            tone="accent"
-          />
+        {rank && rank.rank !== null && (
+          <Stat label="Mphakati Rank" value={`#${rank.rank} of ${rank.out_of}`} hint={`Score: ${rank.final_score}%`} tone="accent" />
+        )}
+        {rank && rank.rank === null && (
+          <Stat label="Mphakati Rank" value="Not yet scored" hint="Waiting for first finalized month" />
         )}
         {participation && (
-          <Stat 
-            label="Participation Rate" 
-            value={`${participation.participation_rate}%`} 
-            hint={`${participation.present} present · ${participation.absent} absent`}
-            tone="positive"
-          />
+          <Stat label="Participation Rate" value={`${participation.participation_rate}%`} hint={`${participation.present} present · ${participation.absent} absent`} tone="positive" />
         )}
         {contributions && (
-          <Stat 
-            label="Total Contributed" 
-            value={`K${contributions.total_contributed.toFixed(2)}`} 
-            hint={`${contributions.record_count} payment(s)`}
-          />
+          <Stat label="Total Contributed" value={`K${contributions.total_contributed.toFixed(2)}`} hint={`${contributions.record_count} payment(s)`} />
         )}
       </div>
 
@@ -174,11 +217,11 @@ export default function ProfilePage() {
         <form onSubmit={handleEdit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Phone Number</label>
-            <input name="phone" defaultValue={profile?.phone || ""} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500" />
+            <input name="phone" defaultValue={(profile as any)?.phone || ""} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Email Address</label>
-            <input name="email" type="email" defaultValue={profile?.email || ""} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500" />
+            <input name="email" type="email" defaultValue={(profile as any)?.email || ""} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="secondary" type="button" onClick={() => setIsModalOpen(false)}>Cancel</Button>

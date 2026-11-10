@@ -7,6 +7,9 @@ import AppShell from "./layout/AppShell";
 import LandingPage from "./pages/LandingPage";
 import CheckInPage from "./pages/CheckInPage";
 import Login from "./pages/Login";
+import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import LeaderboardPage from "./pages/LeaderboardPage";
@@ -19,6 +22,9 @@ import AnnouncementsPage from "./pages/AnnouncementsPage";
 import PrayerPage from "./pages/PrayerPage";
 import FinancePage from "./pages/FinancePage";
 import ReportsPage from "./pages/ReportsPage";
+import ElectionsPage from "./pages/ElectionsPage";
+import VotePage from "./pages/VotePage";
+import ResultsPage from "./pages/ResultsPage";
 import ScoringSettingsPage from "./pages/ScoringSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuditPage from "./pages/AuditPage";
@@ -32,6 +38,9 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/checkin" element={<CheckInPage />} />
 
           {/* Protected Routes */}
@@ -49,6 +58,9 @@ export default function App() {
               <Route path="/prayer" element={<RequirePerm perm="prayer.view"><PrayerPage /></RequirePerm>} />
               <Route path="/finance" element={<RequirePerm perm="finance.view_aggregate"><FinancePage /></RequirePerm>} />
               <Route path="/reports" element={<RequirePerm perm="reports.view"><ReportsPage /></RequirePerm>} />
+              <Route path="/elections" element={<RequirePerm perm="leaderboard.view"><ElectionsPage /></RequirePerm>} />
+              <Route path="/elections/:id/vote" element={<RequirePerm perm="leaderboard.view"><VotePage /></RequirePerm>} />
+              <Route path="/elections/:id/results" element={<RequirePerm perm="leaderboard.view"><ResultsPage /></RequirePerm>} />
               <Route path="/scoring-settings" element={<RequirePerm perm="scoring.manage"><ScoringSettingsPage /></RequirePerm>} />
               <Route path="/settings" element={<RequirePerm perm="settings.manage"><SettingsPage /></RequirePerm>} />
               <Route path="/audit" element={<RequirePerm perm="audit.view"><AuditPage /></RequirePerm>} />

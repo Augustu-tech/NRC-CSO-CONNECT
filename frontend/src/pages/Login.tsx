@@ -25,12 +25,12 @@ export default function Login() {
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError("Invalid username or password.");
-      } else if (err.response?.status === 400) {
-        setError("Missing username or password.");
+      } else if (err.response?.status === 403) {
+        setError(err.response?.data?.detail || "Your account is inactive. Contact the Secretary.");
       } else if (err.response) {
-        setError(`Server error: ${err.response.status}. Check backend logs.`);
+        setError(`Server error: ${err.response.status}.`);
       } else {
-        setError(`Network Error: Could not reach the API at ${import.meta.env.VITE_API_URL || "http://" + window.location.hostname + ":8000/api"}`);
+        setError(`Network Error: Could not reach the API.`);
       }
     } finally {
       setLoading(false);
@@ -50,7 +50,6 @@ export default function Login() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-faith-600/10 rounded-full blur-[100px]"></div>
       </div>
 
-      {/* Back to Home Link */}
       <Link 
         to="/" 
         className="absolute top-6 left-6 z-20 flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition"
@@ -58,18 +57,12 @@ export default function Login() {
         <ArrowLeft size={16} /> Back to home
       </Link>
 
-      {/* Glassmorphism Login Card */}
       <div className="relative z-10 w-full max-w-md">
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
           
-          {/* Header with Large Floating Transparent Logo */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <img 
-                src="/nrc_logo.png" 
-                alt="NRC CSO Logo" 
-                className="h-36 w-36 object-contain drop-shadow-2xl" 
-              />
+              <img src="/nrc_logo.png" alt="NRC CSO Logo" className="h-32 w-32 object-contain drop-shadow-2xl" />
             </div>
             <h1 className="text-3xl font-serif font-bold text-gold-500 tracking-tight drop-shadow-sm">
               NRC CSO CONNECT
@@ -133,6 +126,11 @@ export default function Login() {
               {loading ? "Authenticating…" : "Sign In"}
             </button>
           </form>
+
+          <div className="mt-6 flex items-center justify-between text-xs">
+            <Link to="/forgot-password" className="text-slate-400 hover:text-white transition">Forgot password?</Link>
+            <Link to="/register" className="text-amber-300 hover:text-amber-200 font-semibold transition">Create an account</Link>
+          </div>
 
           <p className="text-center text-xs text-slate-500 mt-8">
             Restricted access. Authorized members only.

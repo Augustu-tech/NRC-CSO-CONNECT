@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { api } from "../api/client";
+import { api, getMiphakati, type Mphakati } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { hasPerm } from "../config/permissions";
 import { Card } from "../ui/Card";
@@ -18,6 +18,10 @@ export default function AnnouncementsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  
+  // Targeting state
+  const [miphakatiList, setMiphakatiList] = useState<Mphakati[]>([]);
+  const [targetAudience, setTargetAudience] = useState("ALL");
 
   const canManage = hasPerm(me, "announcements.manage");
 
@@ -29,7 +33,12 @@ export default function AnnouncementsPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    if (canManage) {
+      getMiphakati().then(r => setMiphakatiList(r.data.results || r.data || []));
+    }
+  }, [canManage]);
 
   const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,18 +46,23 @@ export default function AnnouncementsPage() {
     setFormError("");
     const formData = new FormData(e.currentTarget);
     
+    const payload: any = {
+      title: formData.get("title"),
+      content: formData.get("content"),
+      priority: formData.get("priority"),
+      target_audience: targetAudience,
+    };
+
+    if (targetAudience === "MIPHAKATI" && formData.get("mphakati")) {
+      payload.mphakati = Number(formData.get("mphakati"));
+    }
+
     try {
-      const res = await api.post("/engagement/announcements/", {
-        title: formData.get("title"),
-        content: formData.get("content"),
-        priority: formData.get("priority"),
-        target_audience: "ALL",
-      });
-      
-      // Auto-publish immediately after creation for simplicity
+      const res = await api.post("/engagement/announcements/", payload);
       await api.post(`/engagement/announcements/${res.data.id}/publish/`);
       
       setIsModalOpen(false);
+      setTargetAudience("ALL");
       load();
     } catch (err: any) {
       setFormError(err?.response?.data?.detail || "Failed to create announcement.");
@@ -80,10 +94,7 @@ export default function AnnouncementsPage() {
       />
 
       {loading && <Card className="p-5 text-sm text-slate-500">Loading…</Card>}
-
-      {!loading && rows.length === 0 && (
-        <Card><EmptyState title="No announcements yet" /></Card>
-      )}
+      {!loading && rows.length === 0 && <Card><EmptyState title="No announcements yet" /></Card>}
 
       {!loading && rows.map((a) => (
         <Card key={a.id} className="p-5">
@@ -99,25 +110,24 @@ export default function AnnouncementsPage() {
                     {a.priority}
                   </span>
                 )}
+                {a.target_audience === "MIPHAKATI" && (
+                  <span className="text-[10px] uppercase tracking-wide bg-faith-50 text-faith-700 px-2 py-0.5 rounded border border-faith-100">
+                    {a.mphakati_name || "Targeted"} Only
+                  </span>
+                )}
                 {!a.is_published && (
                   <span className="text-[10px] uppercase tracking-wide bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
                     Draft
                   </span>
                 )}
               </div>
-              <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">
-                {a.content}
-              </p>
+              <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{a.content}</p>
               <p className="text-xs text-slate-400 mt-3">
                 {a.author_name} · {a.published_at ? new Date(a.published_at).toLocaleDateString() : "not published"}
               </p>
             </div>
             {canManage && !a.is_published && (
-              <Button
-                variant="secondary"
-                disabled={busy === a.id}
-                onClick={() => publish(a.id)}
-              >
+              <Button variant="secondary" disabled={busy === a.id} onClick={() => publish(a.id)}>
                 {busy === a.id ? "Publishing…" : "Publish"}
               </Button>
             )}
@@ -139,14 +149,37 @@ export default function AnnouncementsPage() {
             <textarea name="content" required rows={4} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500" />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Priority</label>
-            <select name="priority" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500">
-              <option value="NORMAL">Normal</option>
-              <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Priority</label>
+              <select name="priority" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500">
+                <option value="NORMAL">Normal</option>
+                <option value="HIGH">High</option>
+                <option value="URGENT">Urgent</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Target Audience</label>
+              <select 
+                value={targetAudience} 
+                onChange={(e) => setTargetAudience(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500"
+              >
+                <option value="ALL">Everyone</option>
+                <option value="MIPHAKATI">Specific Mphakati</option>
+              </select>
+            </div>
           </div>
+
+          {targetAudience === "MIPHAKATI" && (
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Select Mphakati</label>
+              <select name="mphakati" required className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500">
+                <option value="">Select...</option>
+                {miphakatiList.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="secondary" type="button" onClick={() => setIsModalOpen(false)}>Cancel</Button>

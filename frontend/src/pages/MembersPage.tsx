@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Plus, Search, ArrowRightLeft } from "lucide-react";
-import { api, getMiphakati, getSemesters, transferMember, type Mphakati, type Semester } from "../api/client";
+import { Plus, Search, ArrowRightLeft, CheckCircle2, Clock, User } from "lucide-react";
+import { api, getMiphakati, getSemesters, transferMember, getMediaUrl, type Mphakati, type Semester } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { hasPerm } from "../config/permissions";
 import { Card } from "../ui/Card";
@@ -8,6 +8,7 @@ import { PageHeader } from "../ui/PageHeader";
 import { EmptyState } from "../ui/EmptyState";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import MemberDetailModal from "../components/MemberDetailModal";
 
 type Member = {
   id: number;
@@ -19,12 +20,15 @@ type Member = {
   phone: string;
   email: string;
   status: string;
+  current_mphakati?: string;
+  profile_picture?: string | null;
 };
 
 export default function MembersPage() {
   const { me } = useAuth();
   const [rows, setRows] = useState<Member[]>([]);
   const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
@@ -40,6 +44,7 @@ export default function MembersPage() {
   const [transferMemberObj, setTransferMemberObj] = useState<Member | null>(null);
   const [transferSaving, setTransferSaving] = useState(false);
   const [transferError, setTransferError] = useState("");
+  const [viewMemberId, setViewMemberId] = useState<number | null>(null);
 
   const canManage = hasPerm(me, "members.manage");
 
@@ -58,6 +63,16 @@ export default function MembersPage() {
       getSemesters().then(r => setSemestersList(r.data.results || r.data || [])).catch(() => {});
     }
   }, [canManage]);
+
+  const handleApprove = async (id: number) => {
+    if (!confirm("Approve this member? They will be able to log in immediately.")) return;
+    try {
+      await api.patch(`/members/members/${id}/`, { status: "ACTIVE" });
+      loadMembers();
+    } catch {
+      alert("Failed to approve member.");
+    }
+  };
 
   const handleAddMember = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -118,9 +133,15 @@ export default function MembersPage() {
   };
 
   const filtered = rows.filter((m) => {
-    if (!q) return true;
-    const blob = `${m.first_name} ${m.last_name} ${m.student_id}`.toLowerCase();
-    return blob.includes(q.toLowerCase());
+    // 1. Status Filter
+    if (statusFilter !== "ALL" && m.status !== statusFilter) return false;
+    
+    // 2. Search Filter
+    if (q) {
+      const blob = `${m.first_name} ${m.last_name} ${m.student_id}`.toLowerCase();
+      if (!blob.includes(q.toLowerCase())) return false;
+    }
+    return true;
   });
 
   return (
@@ -148,11 +169,32 @@ export default function MembersPage() {
         }
       />
 
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200">
+        {["ALL", "ACTIVE", "INACTIVE"].map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors
+              ${statusFilter === status 
+                ? "border-faith-600 text-faith-700" 
+                : "border-transparent text-slate-500 hover:text-slate-700"}`}
+          >
+            {status === "ALL" ? "All Members" : status === "INACTIVE" ? "Pending Approval" : "Active"}
+            {status === "INACTIVE" && rows.filter(r => r.status === "INACTIVE").length > 0 && (
+              <span className="ml-2 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
+                {rows.filter(r => r.status === "INACTIVE").length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {loading && <Card className="p-5 text-sm text-slate-500">Loading…</Card>}
       {error && <Card className="p-5 text-sm text-slate-500">{error}</Card>}
 
       {!loading && !error && filtered.length === 0 && (
-        <Card><EmptyState title="No members found" description={q ? "Try a different search term." : undefined} /></Card>
+        <Card><EmptyState title="No members found" description={statusFilter === "INACTIVE" ? "No pending registrations to approve." : undefined} /></Card>
       )}
 
       {!loading && filtered.length > 0 && (
@@ -164,6 +206,7 @@ export default function MembersPage() {
                   <th className="text-left px-4 py-3 font-medium">Name</th>
                   <th className="text-left px-4 py-3 font-medium">Student ID</th>
                   <th className="text-left px-4 py-3 font-medium">Phone</th>
+                  <th className="text-left px-4 py-3 font-medium">Mphakati</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>
                   {canManage && <th className="text-right px-4 py-3 font-medium">Actions</th>}
                 </tr>
@@ -171,20 +214,55 @@ export default function MembersPage() {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((m) => (
                   <tr key={m.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-900">{m.first_name} {m.last_name}</td>
+                    <td className="px-4 py-3">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer group"
+                        onClick={() => setViewMemberId(m.id)}
+                      >
+                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {m.profile_picture ? (
+                            <img src={getMediaUrl(m.profile_picture) || ""} alt="Avatar" className="h-full w-full object-cover" />
+                          ) : (
+                            <User size={14} className="text-slate-400" />
+                          )}
+                        </div>
+                        <span className="text-slate-900 font-medium group-hover:text-faith-600 group-hover:underline transition">
+                          {m.first_name} {m.last_name}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{m.student_id}</td>
                     <td className="px-4 py-3 text-slate-600">{m.phone || "—"}</td>
+                    <td className="px-4 py-3 text-slate-600 font-medium">
+                      {m.current_mphakati || "—"}
+                    </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs uppercase tracking-wide text-slate-500">{m.status}</span>
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded
+                        ${m.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700" 
+                        : m.status === "INACTIVE" ? "bg-amber-50 text-amber-700"
+                        : "bg-slate-100 text-slate-600"}`}>
+                        {m.status === "ACTIVE" ? <CheckCircle2 size={12} /> : m.status === "INACTIVE" ? <Clock size={12} /> : null}
+                        {m.status}
+                      </span>
                     </td>
                     {canManage && (
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setTransferMemberObj(m)}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-faith-600 hover:text-faith-900 px-2 py-1 rounded hover:bg-faith-50 transition"
-                        >
-                          <ArrowRightLeft size={14} /> Transfer
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          {m.status === "INACTIVE" && (
+                            <button
+                              onClick={() => handleApprove(m.id)}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 px-3 py-1.5 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition"
+                            >
+                              <CheckCircle2 size={14} /> Approve
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setTransferMemberObj(m)}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-faith-600 hover:text-faith-900 px-2 py-1 rounded hover:bg-faith-50 transition"
+                          >
+                            <ArrowRightLeft size={14} /> Transfer
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -278,7 +356,7 @@ export default function MembersPage() {
           {transferError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{transferError}</div>}
           <p className="text-sm text-slate-600">
             This will move <strong>{transferMemberObj?.first_name} {transferMemberObj?.last_name}</strong> 
-            out of their current Mphakati and into a new one.
+            out of their current Mphakati (<strong>{transferMemberObj?.current_mphakati || "Unknown"}</strong>) and into a new one.
           </p>
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">New Mphakati</label>
@@ -300,6 +378,11 @@ export default function MembersPage() {
           </div>
         </form>
       </Modal>
+      
+      <MemberDetailModal 
+        memberId={viewMemberId} 
+        onClose={() => setViewMemberId(null)} 
+      />
     </div>
   );
 }

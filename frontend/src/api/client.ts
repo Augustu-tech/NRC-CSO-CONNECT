@@ -195,3 +195,60 @@ export const activateAcademicYear = (id: number) => api.post(`/organizations/aca
 // ---- QR Attendance ----
 export const getActivityQR = (id: number) => api.get(`/activities/activities/${id}/qr_code/`);
 export const checkInWithToken = (token: string) => api.post("/activities/activities/checkin/", { token });
+
+// ---- Registration & Auth ----
+export const registerUser = (data: any) => api.post("/auth/register/", data);
+export const forgotPassword = (email: string) => api.post("/auth/forgot-password/", { email });
+
+// ---- Registration & Auth ----
+
+export const resetPasswordConfirm = (data: { uid: string; token: string; new_password: string }) => 
+  api.post("/auth/reset-password/", data);
+
+// ---- Profile Picture Upload ----
+export const uploadProfilePicture = (file: File) => {
+  const formData = new FormData();
+  formData.append("profile_picture", file);
+  return api.patch("/members/me/profile/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+// Helper to get the full URL for an image
+export const getMediaUrl = (path: string | null | undefined) => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  const host = window.location.hostname;
+  return `http://${host}:8000${path}`;
+};
+
+// ---- Admin Member Detail View ----
+export const getMemberProfileData = (memberId: number) => api.get(`/members/members/${memberId}/profile_data/`);
+
+// ---- Elections ----
+export type Election = {
+  id: number;
+  title: string;
+  description: string;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+  results_published: boolean;
+  positions: any[];
+  total_votes: number;
+};
+
+export const getElections = () => api.get<{ results: Election[] }>("/elections/?page_size=50");
+export const getElection = (id: number) => api.get<Election>(`/elections/${id}/`);
+export const getMyBallot = (id: number) => api.get(`/elections/${id}/my_ballot/`);
+export const getResults = (id: number) => api.get(`/elections/${id}/results/`);
+export const castVote = (electionId: number, positionId: number, candidateId: number) =>
+  api.post(`/elections/${electionId}/cast_vote/`, { position_id: positionId, candidate_id: candidateId });
+export const createElection = (data: any) => api.post("/elections/", data);
+export const updateElection = (id: number, data: any) => api.patch(`/elections/${id}/`, data);
+export const createPosition = (data: any) => api.post("/positions/", data);
+export const createCandidate = (data: any) => api.post("/candidates/", data);
+export const deletePosition = (id: number) => api.delete(`/positions/${id}/`);
+export const deleteCandidate = (id: number) => api.delete(`/candidates/${id}/`);
+
+export const updateCandidate = (id: number, data: any) => api.patch(`/candidates/${id}/`, data);

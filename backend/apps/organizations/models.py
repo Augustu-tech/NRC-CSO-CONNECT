@@ -56,6 +56,14 @@ class Affiliate(models.Model):
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     scoring_method = models.CharField(max_length=20, default="participation")
+    coordinator = models.ForeignKey(
+        "members.Member",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="coordinated_affiliates",
+        help_text="The member who is officially appointed to coordinate this affiliate."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

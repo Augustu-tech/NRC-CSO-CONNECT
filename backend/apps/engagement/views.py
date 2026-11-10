@@ -46,6 +46,41 @@ class AnnouncementViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelV
         ann.published_at = timezone.now()
         ann.save(update_fields=["is_published", "published_at", "updated_at"])
         log(request, "APPROVE", model=Announcement, obj=ann, new={"is_published": True})
+
+        # ---------- Create notifications for target users ----------
+        from apps.accounts.models import User
+        
+        target_users = User.objects.filter(is_active=True).exclude(id=request.user.id)
+        
+        # Filter by audience (for future use when targeting is enabled)
+        if ann.target_audience == "MIPHAKATI" and ann.mphakati:
+            from apps.members.models import MphakatiMembership
+            member_ids = MphakatiMembership.objects.filter(
+                mphakati=ann.mphakati, is_current=True
+            ).values_list("member_id", flat=True)
+            target_users = target_users.filter(member_id__in=member_ids)
+        elif ann.target_audience == "AFFILIATE" and ann.affiliate:
+            from apps.organizations.models import AffiliateMembership
+            member_ids = AffiliateMembership.objects.filter(
+                affiliate=ann.affiliate, is_active=True
+            ).values_list("member_id", flat=True)
+            target_users = target_users.filter(member_id__in=member_ids)
+        
+        # Bulk create notifications (efficient for 100s of users)
+        notifs = [
+            Notification(
+                user=u,
+                kind="ANNOUNCEMENT",
+                title=f"New Announcement: {ann.title[:100]}",
+                body=ann.content[:200],
+                link="/announcements",
+            )
+            for u in target_users
+        ]
+        if notifs:
+            Notification.objects.bulk_create(notifs)
+            print(f"✅ Created {len(notifs)} notifications for announcement '{ann.title}'")
+        
         return Response(AnnouncementSerializer(ann).data)
 
 

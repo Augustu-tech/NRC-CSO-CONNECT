@@ -1,10 +1,10 @@
 """Self-service endpoints — a member sees only their own data."""
 
 from decimal import Decimal
-from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 
 from apps.activities.models import Participation, ScoringConfiguration
@@ -44,19 +44,20 @@ def _current_membership(member):
 
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def my_profile(request):
     member, err = _get_member_or_403(request)
     if err:
         return err
-        
+
     if request.method == "PATCH":
-        # Allow updating only non-critical fields
-        allowed_fields = ["phone", "email"]
+        allowed_fields = ["phone", "email", "profile_picture"]
         for field in allowed_fields:
             if field in request.data:
                 setattr(member, field, request.data[field])
-        member.save(update_fields=["phone", "email", "updated_at"])
-        
+        update_fields = ["phone", "email", "profile_picture", "updated_at"]
+        member.save(update_fields=update_fields)
+
     data = MemberSerializer(member).data
     membership = _current_membership(member)
     data["current_mphakati"] = (
@@ -149,13 +150,27 @@ def my_contributions(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_rank(request):
+    """
+    Return the member's ranking. Never returns 404 — returns null fields
+    when there's no membership or no scored month yet. This lets the
+    frontend render the profile page gracefully even when data is missing.
+    """
     member, err = _get_member_or_403(request)
     if err:
         return err
 
+    empty_response = {
+        "semester": None,
+        "month": None,
+        "mphakati": None,
+        "rank": None,
+        "final_score": None,
+        "out_of": None,
+    }
+
     membership = _current_membership(member)
     if not membership:
-        return Response({"detail": "No active mphakati membership."}, status=404)
+        return Response({**empty_response, "detail": "No active mphakati membership."})
 
     configs = (
         ScoringConfiguration.objects
@@ -163,7 +178,7 @@ def my_rank(request):
         .order_by("-month")
     )
     if not configs.exists():
-        return Response({"detail": "No scoring configuration for this semester."}, status=404)
+        return Response({**empty_response, "detail": "No scoring configuration for this semester."})
 
     chosen = None
     for cfg in configs:
@@ -177,10 +192,12 @@ def my_rank(request):
             break
 
     if not chosen:
-        return Response(
-            {"detail": "No scored month available yet for this semester."},
-            status=404,
-        )
+        return Response({
+            **empty_response,
+            "semester": str(membership.semester),
+            "mphakati": membership.mphakati.name,
+            "detail": "No scored month available yet.",
+        })
 
     cfg, my_card, cards = chosen
     return Response({

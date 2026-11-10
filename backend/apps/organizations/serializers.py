@@ -28,9 +28,16 @@ class MphakatiSerializer(serializers.ModelSerializer):
 
 
 class AffiliateSerializer(serializers.ModelSerializer):
+    coordinator_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Affiliate
         fields = "__all__"
+
+    def get_coordinator_name(self, obj):
+        if obj.coordinator:
+            return f"{obj.coordinator.first_name} {obj.coordinator.last_name}"
+        return None
 
 
 class AffiliateMembershipSerializer(serializers.ModelSerializer):

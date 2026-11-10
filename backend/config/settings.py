@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "anymail",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
@@ -28,6 +29,7 @@ INSTALLED_APPS = [
     "apps.activities",
     "apps.finance",
     "apps.engagement",
+    "apps.elections",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -113,7 +115,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardPagination",
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -163,3 +165,14 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     X_FRAME_OPTIONS = "DENY"
+
+# ---------- Resend Email (Anymail) ----------
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+ANYMAIL = {
+    "RESEND_API_KEY": config("RESEND_API_KEY", default=""),
+}
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="NRC CSO <onboarding@resend.dev>")
+
+# Media Files (Profile Pictures)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

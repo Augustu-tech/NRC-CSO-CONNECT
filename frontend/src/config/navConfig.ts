@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Trophy, Users, CalendarDays, Megaphone, Heart,
-  Wallet, FileSpreadsheet, Settings, ScrollText, User,
+  Wallet, FileSpreadsheet, Settings, ScrollText, User, Vote,
   type LucideIcon,
 } from "lucide-react";
 import type { Perm } from "./permissions";
@@ -20,6 +20,7 @@ export const NAV: NavItem[] = [
   { label: "Leaderboard",      path: "/leaderboard",   perm: "leaderboard.view",     icon: Trophy,          section: "main" },
   { label: "My Profile",       path: "/profile",       perm: "dashboard.view",       icon: User,            section: "main" },
   { label: "Awards History",   path: "/awards",        perm: "leaderboard.view",     icon: Trophy,          section: "main" },
+  { label: "Elections",        path: "/elections",     perm: "leaderboard.view",     icon: Vote,            section: "main" },
 
   { label: "Members",          path: "/members",       perm: "members.view",         icon: Users,           section: "community" },
   { label: "Activities",       path: "/activities",    perm: "activities.view",      icon: CalendarDays,    section: "community" },

@@ -21,6 +21,7 @@ class Member(models.Model):
     phone = models.CharField(max_length=30, blank=True)
     email = models.CharField(max_length=254, blank=True)
     date_joined = models.DateField()
+    profile_picture = models.ImageField(upload_to="profiles/", null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
