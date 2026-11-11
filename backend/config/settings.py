@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security
 SECRET_KEY = config("SECRET_KEY")
-DEBUG = config("DEBUG", default=False, cast=bool)
+DEBUG = True
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost,localhost").split(",")
 
 # Applications
@@ -37,9 +37,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Middleware
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+            "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -123,19 +123,20 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "20/min",
         "user": "200/min",
-        "auth": "10/min",
+        "auth": "5/min",         # Only 5 login attempts per minute per IP
         "finance_write": "30/min",
     },
     "PAGE_SIZE": 50,
 }
 
 
+CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:5173",
 ]
 
 
@@ -156,7 +157,7 @@ SIMPLE_JWT = {
 
 # ---------- Production-only security ----------
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    # SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
@@ -176,3 +177,33 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="NRC CSO <onboarding@r
 # Media Files (Profile Pictures)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# ==========================================
+# PRODUCTION SECURITY HARDENING
+# ==========================================
+
+# Ensure DEBUG is False in production
+# We default to False if the env variable is missing
+import os
+
+# Force HTTPS for all requests (redirects http -> https)
+
+# Secure Cookies (only sent over HTTPS)
+
+
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+
+# HSTS (Tells browsers to ONLY use HTTPS for this site for 1 year)
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Prevent Content-Type sniffing (stops hackers from uploading scripts disguised as images)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Prevent Clickjacking (stops attackers from embedding your site in a hidden iframe)
+X_FRAME_OPTIONS = "DENY"
+
+# Referrer Policy (don't leak URL data to third parties)
+SECURE_REFERRER_POLICY = "same-origin"

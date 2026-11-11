@@ -252,3 +252,6 @@ export const deletePosition = (id: number) => api.delete(`/positions/${id}/`);
 export const deleteCandidate = (id: number) => api.delete(`/candidates/${id}/`);
 
 export const updateCandidate = (id: number, data: any) => api.patch(`/candidates/${id}/`, data);
+
+export const getUsers = () => api.get("/users/?page_size=200");
+export const updateUser = (id: number, data: any) => api.patch(`/users/${id}/`, data);

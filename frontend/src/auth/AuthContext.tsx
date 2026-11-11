@@ -29,7 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await getMe();
       setMe(res.data);
     } catch {
+      // If we can't load the profile (e.g., token expired), force a logout
       setMe(null);
+      setUserId(null);
+      tokenStore.clear();
     } finally {
       setLoadingMe(false);
     }

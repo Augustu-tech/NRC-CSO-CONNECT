@@ -8,6 +8,12 @@ class AcademicYear(models.Model):
     end_date = models.DateField()
     is_active = models.BooleanField(default=True)
 
+    def save(self, *args, **kwargs):
+        # Enforce that only one academic year can be active at a time
+        if self.is_active:
+            AcademicYear.objects.filter(is_active=True).exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
+
     class Meta:
         managed = True
         db_table = "organizations_academicyear"
@@ -25,6 +31,16 @@ class Semester(models.Model):
     academic_year = models.ForeignKey(
         AcademicYear, on_delete=models.PROTECT, related_name="semesters"
     )
+
+    def save(self, *args, **kwargs):
+        # Enforce that only one semester can be active at a time
+        if self.is_active:
+            Semester.objects.filter(is_active=True).exclude(pk=self.pk).update(is_active=False)
+            # Force the parent Academic Year to be active as well
+            if self.academic_year and not self.academic_year.is_active:
+                self.academic_year.is_active = True
+                self.academic_year.save()
+        super().save(*args, **kwargs)
 
     class Meta:
         managed = True

@@ -25,10 +25,25 @@ class AcademicYearViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelV
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         year = self.get_object()
+        
+        # Check if the year has semesters
+        from apps.organizations.models import Semester
+        sems = Semester.objects.filter(academic_year=year).order_by("-number")
+        if not sems.exists():
+            return Response({"detail": "Cannot activate a year with no semesters. Please add a semester first."}, status=400)
+            
+        # Activate the year
         AcademicYear.objects.filter(is_active=True).update(is_active=False)
         year.is_active = True
         year.save()
-        return Response({"detail": f"Academic Year {year.name} activated."})
+        
+        # Automatically activate the most recent semester in this year
+        Semester.objects.filter(is_active=True).update(is_active=False)
+        latest_sem = sems.first()
+        latest_sem.is_active = True
+        latest_sem.save()
+        
+        return Response({"detail": f"Academic Year {year.name} and Semester {latest_sem.number} activated."})
 
 
 class SemesterViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet):
@@ -40,6 +55,14 @@ class SemesterViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewS
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         semester = self.get_object()
+        
+        from django.utils import timezone
+        if semester.end_date < timezone.now().date():
+            return Response(
+                {"detail": "Cannot activate a semester that has already ended. Please edit the dates first."},
+                status=400
+            )
+
         Semester.objects.filter(is_active=True).update(is_active=False)
         semester.is_active = True
         semester.save()

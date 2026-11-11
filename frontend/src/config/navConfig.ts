@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Trophy, Users, CalendarDays, Megaphone, Heart,
-  Wallet, FileSpreadsheet, Settings, ScrollText, User, Vote,
+  Wallet, FileSpreadsheet, Settings, ScrollText, User, Vote, Shield,
   type LucideIcon,
 } from "lucide-react";
 import type { Perm } from "./permissions";
@@ -32,6 +32,7 @@ export const NAV: NavItem[] = [
   { label: "Reports",          path: "/reports",       perm: "reports.view",         icon: FileSpreadsheet, section: "operations" },
 
   { label: "Scoring Rules",    path: "/scoring-settings", perm: "scoring.manage",   icon: Settings,        section: "admin" },
+  { label: "User Management",  path: "/users",         perm: "settings.manage",      icon: Shield,          section: "admin" },
   { label: "Settings",         path: "/settings",      perm: "settings.manage",      icon: Settings,        section: "admin" },
   { label: "Audit Log",        path: "/audit",         perm: "audit.view",           icon: ScrollText,      section: "admin" },
 ];
