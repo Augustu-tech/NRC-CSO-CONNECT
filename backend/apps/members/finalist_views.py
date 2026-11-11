@@ -123,3 +123,51 @@ def finalist_window_status(request):
         "deadline_passed": deadline_passed,
         "my_registration": user_status,
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def finalist_certificate_pdf(request, pk):
+    """Generate a PDF certificate for an APPROVED finalist."""
+    from django.http import HttpResponse
+    from django.shortcuts import get_object_or_404
+    from .finalist_certificate import build_finalist_certificate
+
+    reg = get_object_or_404(FinalistRegistration, pk=pk)
+
+    # Only the finalist themselves or admin/staff can download
+    is_admin = request.user.is_superuser or request.user.role in (
+        "super_admin", "chairperson", "vice_chairperson", "secretary", "vice_secretary"
+    )
+    if not is_admin and request.user.member_id != reg.member_id:
+        return Response({"detail": "Not allowed."}, status=403)
+
+    if reg.status != "APPROVED":
+        return Response({"detail": "This finalist is not yet approved."}, status=400)
+
+    mship = reg.member.mphakati_memberships.filter(is_current=True).select_related("mphakati").first()
+    mphakati_name = mship.mphakati.name if mship else "N/A"
+
+    # Use the chaplain of the ACTIVE semester (current leader), falling back to
+    # the finalist's own semester, falling back to a generic label.
+    active_sem = Semester.objects.filter(is_active=True).first()
+    chaplain = (
+        (active_sem.chaplain_signer if active_sem else None)
+        or reg.semester.chaplain_signer
+        or "CSO Chaplain"
+    )
+
+    buf = build_finalist_certificate(
+        member_name=f"{reg.member.first_name} {reg.member.last_name}",
+        student_id=reg.member.student_id,
+        mphakati_name=mphakati_name,
+        program=reg.program or "N/A",
+        year_of_study=reg.year_of_study,
+        semester_label=str(reg.semester),
+        chaplain_name=chaplain,
+    )
+
+    filename = f"finalist_{reg.member.last_name}_{reg.member.student_id}.pdf"
+    resp = HttpResponse(buf.getvalue(), content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp

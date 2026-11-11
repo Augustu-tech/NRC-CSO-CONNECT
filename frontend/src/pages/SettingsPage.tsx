@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Plus, Calendar, CheckCircle, BookOpen, Pencil, XCircle, AlertCircle } from "lucide-react";
-import { api, activateSemester, activateAcademicYear } from "../api/client";
+import { api, activateSemester, activateAcademicYear, setSemesterChaplain } from "../api/client";
 import { Card } from "../ui/Card";
 import { PageHeader } from "../ui/PageHeader";
 import { Button } from "../ui/Button";
@@ -18,6 +18,8 @@ export default function SettingsPage() {
   
   const [editingSemester, setEditingSemester] = useState<any>(null);
   const [addingSemesterToYear, setAddingSemesterToYear] = useState<any>(null);
+  const [editingChaplain, setEditingChaplain] = useState<any>(null);
+  const [chaplainSaving, setChaplainSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -107,6 +109,22 @@ export default function SettingsPage() {
   const setActiveYear = async (id: number) => {
     if (!confirm("Make this the active Academic Year?")) return;
     try { await activateAcademicYear(id); load(); } catch (e:any) { alert(e.response?.data?.detail || "Failed to activate year."); }
+  };
+
+  const saveChaplain = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingChaplain) return;
+    setChaplainSaving(true);
+    const fd = new FormData(e.currentTarget);
+    try {
+      await setSemesterChaplain(editingChaplain.id, fd.get("chaplain") as string);
+      setEditingChaplain(null);
+      load();
+    } catch {
+      alert("Failed to update chaplain.");
+    } finally {
+      setChaplainSaving(false);
+    }
   };
 
   const setActiveSemester = async (id: number) => {
@@ -257,6 +275,21 @@ export default function SettingsPage() {
                               )}
                             </div>
                             <p className="text-xs text-slate-500 mt-0.5">{sem.start_date} to {sem.end_date}</p>
+                            
+                            {/* Chaplain display + edit — only for active semester */}
+                            {sem.is_active && (
+                              <div className="flex items-center gap-1 mt-1.5">
+                                <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Chaplain:</span>
+                                <span className="text-xs font-medium text-slate-700">{sem.chaplain_signer || "Not set"}</span>
+                                <button
+                                  onClick={() => setEditingChaplain(sem)}
+                                  className="text-slate-400 hover:text-faith-700 ml-0.5"
+                                  title="Change chaplain"
+                                >
+                                  <Pencil size={10} />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-3">
@@ -357,6 +390,29 @@ export default function SettingsPage() {
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="secondary" type="button" onClick={() => setIsSemModalOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save Semester"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Chaplain Edit Modal */}
+      <Modal isOpen={!!editingChaplain} onClose={() => setEditingChaplain(null)} title="Update Chaplain Name">
+        <form onSubmit={saveChaplain} className="space-y-4">
+          <div className="p-3 bg-faith-50 text-faith-900 text-xs rounded-lg border border-faith-100">
+            The chaplain's name appears on all finalist certificates printed for this semester. Update it when a new chaplain is appointed.
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Chaplain Name</label>
+            <input
+              name="chaplain"
+              defaultValue={editingChaplain?.chaplain_signer || ""}
+              required
+              placeholder="e.g. Fr. Sebastian Malambo"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-faith-500"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="secondary" type="button" onClick={() => setEditingChaplain(null)}>Cancel</Button>
+            <Button type="submit" disabled={chaplainSaving}>{chaplainSaving ? "Saving…" : "Save"}</Button>
           </div>
         </form>
       </Modal>

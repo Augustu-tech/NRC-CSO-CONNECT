@@ -265,3 +265,8 @@ export const rejectFinalist = (id: number) => api.post(`/finalists/${id}/reject/
 
 export const updateAnnouncement = (id: number, data: any) => api.patch(`/engagement/announcements/${id}/`, data);
 export const deleteAnnouncement = (id: number) => api.delete(`/engagement/announcements/${id}/`);
+
+export const getFinalistCertificate = (id: number) => `/finalists/${id}/certificate/`;
+
+export const setSemesterChaplain = (id: number, chaplain_signer: string) =>
+  api.post(`/organizations/semesters/${id}/set_chaplain/`, { chaplain_signer });

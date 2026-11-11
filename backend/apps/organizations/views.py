@@ -107,6 +107,17 @@ class SemesterViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewS
             "graduated_members": graduated_count,
         })
 
+    @action(detail=True, methods=["post"])
+    def set_chaplain(self, request, pk=None):
+        """Update the chaplain's name for this semester."""
+        semester = self.get_object()
+        name = (request.data.get("chaplain_signer") or "").strip()
+        if not name:
+            return Response({"detail": "Chaplain name is required."}, status=400)
+        semester.chaplain_signer = name
+        semester.save(update_fields=["chaplain_signer"])
+        return Response({"detail": f"Chaplain updated to {name}.", "chaplain_signer": name})
+
 
 class MphakatiViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet):
     read_permission_classes = [AllowAny]

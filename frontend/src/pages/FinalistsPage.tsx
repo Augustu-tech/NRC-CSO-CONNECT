@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { GraduationCap, CheckCircle2, XCircle, Clock } from "lucide-react";
 import {
   getFinalistWindow, getFinalists, registerFinalist, approveFinalist, rejectFinalist,
-  getMediaUrl
+  downloadFile, getMediaUrl
 } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { hasPerm } from "../config/permissions";
@@ -209,6 +209,14 @@ export default function FinalistsPage() {
                           <button onClick={() => handleApprove(f.id)} className="text-emerald-600 hover:text-emerald-800 text-xs font-medium">Approve</button>
                           <button onClick={() => handleReject(f.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Reject</button>
                         </>
+                      )}
+                      {f.status === "APPROVED" && (
+                        <button
+                          onClick={() => downloadFile(`/finalists/${f.id}/certificate/`, `finalist_${f.member_name.replace(/ /g, "_")}.pdf`)}
+                          className="text-xs font-medium text-faith-700 hover:text-faith-900 bg-faith-50 px-2 py-1 rounded"
+                        >
+                          Certificate
+                        </button>
                       )}
                     </div>
                   </div>

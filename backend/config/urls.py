@@ -12,7 +12,7 @@ from apps.accounts import me_views as mev
 from apps.accounts.auth_views import CustomTokenObtainPairView, register, forgot_password, reset_password_confirm
 from apps.accounts.audit_views import AuditLogViewSet
 from apps.accounts.user_views import UserManagementViewSet
-from apps.members.finalist_views import FinalistRegistrationViewSet, finalist_window_status
+from apps.members.finalist_views import FinalistRegistrationViewSet, finalist_window_status, finalist_certificate_pdf
 from apps.activities import dashboard_views as dash
 from apps.activities import export_views as exp
 
@@ -55,6 +55,7 @@ urlpatterns = [
     
     # Audit Logs (Mounted under /api/)
     path("api/finalists/window/", finalist_window_status, name="finalist-window"),
+    path("api/finalists/<int:pk>/certificate/", finalist_certificate_pdf, name="finalist-certificate"),
     path("api/", include(router.urls)),
 ]
 
