@@ -57,16 +57,55 @@ class SemesterViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewS
         semester = self.get_object()
         
         from django.utils import timezone
+        from apps.members.models import Member, MphakatiMembership, FinalistRegistration
+        from apps.accounts.audit import log
+
         if semester.end_date < timezone.now().date():
             return Response(
                 {"detail": "Cannot activate a semester that has already ended. Please edit the dates first."},
                 status=400
             )
 
+        # Find the currently active semester BEFORE we switch
+        previous_semester = Semester.objects.filter(is_active=True).exclude(pk=semester.pk).first()
+        
+        graduated_count = 0
+        if previous_semester:
+            # Find every member whose finalist registration in the previous semester was APPROVED
+            approved_finalists = FinalistRegistration.objects.filter(
+                semester=previous_semester,
+                status="APPROVED",
+            ).values_list("member_id", flat=True)
+            
+            if approved_finalists:
+                # 1. Mark them as GRADUATED
+                graduated_count = Member.objects.filter(
+                    id__in=approved_finalists,
+                    status__iexact="ACTIVE",
+                ).update(status="GRADUATED")
+                
+                # 2. Deactivate their Mphakati memberships from the previous semester
+                MphakatiMembership.objects.filter(
+                    member_id__in=approved_finalists,
+                    semester=previous_semester,
+                    is_current=True,
+                ).update(is_current=False, end_date=previous_semester.end_date)
+                
+                # 3. Log the automatic action
+                log(request, "UPDATE", model=Member, obj_id=0,
+                    obj_repr=f"Auto-graduated {graduated_count} finalists from {previous_semester}",
+                    reason="Automatic graduation on semester transition")
+
+        # Now switch the active semester
         Semester.objects.filter(is_active=True).update(is_active=False)
         semester.is_active = True
         semester.save()
-        return Response({"detail": f"Semester {semester} activated."})
+        
+        return Response({
+            "detail": f"Semester {semester} activated.",
+            "previous_semester": str(previous_semester) if previous_semester else None,
+            "graduated_members": graduated_count,
+        })
 
 
 class MphakatiViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet):

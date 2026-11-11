@@ -28,6 +28,7 @@ import ResultsPage from "./pages/ResultsPage";
 import ScoringSettingsPage from "./pages/ScoringSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
+import FinalistsPage from "./pages/FinalistsPage";
 import AuditPage from "./pages/AuditPage";
 import Forbidden from "./pages/Forbidden";
 
@@ -65,6 +66,7 @@ export default function App() {
               <Route path="/scoring-settings" element={<RequirePerm perm="scoring.manage"><ScoringSettingsPage /></RequirePerm>} />
               <Route path="/settings" element={<RequirePerm perm="settings.manage"><SettingsPage /></RequirePerm>} />
               <Route path="/users" element={<RequirePerm perm="settings.manage"><UsersPage /></RequirePerm>} />
+              <Route path="/finalists" element={<RequirePerm perm="dashboard.view"><FinalistsPage /></RequirePerm>} />
               <Route path="/audit" element={<RequirePerm perm="audit.view"><AuditPage /></RequirePerm>} />
               <Route path="/forbidden" element={<Forbidden />} />
               

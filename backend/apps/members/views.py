@@ -123,6 +123,13 @@ class MemberViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelViewSet
     @action(detail=True, methods=["post"])
     def transfer(self, request, pk=None):
         member = self.get_object()
+        
+        # Block transfers for graduated, suspended, or former members
+        if member.status.upper() in ("GRADUATED", "SUSPENDED", "FORMER"):
+            return Response(
+                {"detail": f"Cannot transfer a {member.status} member. Only ACTIVE members can be transferred."},
+                status=400
+            )
         new_mphakati_id = request.data.get("mphakati_id")
         semester_id = request.data.get("semester_id")
         

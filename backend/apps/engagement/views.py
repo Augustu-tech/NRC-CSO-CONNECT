@@ -23,6 +23,23 @@ class AnnouncementViewSet(AuditMixin, RoleBasedPermissionsMixin, viewsets.ModelV
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
 
+    def perform_update(self, serializer):
+        # Only the author, a Super Admin, or a Chairperson can edit
+        instance = serializer.instance
+        user = self.request.user
+        if not (user.is_superuser or user.role in ("super_admin", "chairperson") or instance.author_id == user.id):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only edit your own announcements.")
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        # Same rule for deletion
+        user = self.request.user
+        if not (user.is_superuser or user.role in ("super_admin", "chairperson") or instance.author_id == user.id):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete your own announcements.")
+        super().perform_destroy(instance)
+
     def get_queryset(self):
         qs = Announcement.objects.all()
         user = self.request.user

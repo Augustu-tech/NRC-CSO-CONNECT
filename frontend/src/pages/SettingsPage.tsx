@@ -110,8 +110,23 @@ export default function SettingsPage() {
   };
 
   const setActiveSemester = async (id: number) => {
-    if (!confirm("Make this the active Semester?")) return;
-    try { await activateSemester(id); load(); } catch (e:any) { alert(e.response?.data?.detail || "Failed."); }
+    if (!confirm(
+      "Activate this semester?\n\n" +
+      "Any APPROVED finalists from the current semester will automatically be marked GRADUATED and excluded from this new semester."
+    )) return;
+    
+    try { 
+      const res = await activateSemester(id); 
+      const graduated = res.data?.graduated_members || 0;
+      if (graduated > 0) {
+        alert(`✅ Semester activated.\n\n${graduated} finalist(s) graduated and were excluded from this semester.`);
+      } else {
+        alert("✅ Semester activated. No finalists to graduate.");
+      }
+      load(); 
+    } catch (e:any) { 
+      alert(e.response?.data?.detail || "Failed."); 
+    }
   };
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading settings…</div>;

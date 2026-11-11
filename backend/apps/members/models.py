@@ -64,3 +64,43 @@ class MphakatiMembership(models.Model):
         managed = True
         db_table = "members_mphakatimembership"
         unique_together = (("member", "semester"),)
+
+
+class FinalistRegistration(models.Model):
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
+
+    member = models.OneToOneField(
+        Member,
+        on_delete=models.CASCADE,
+        related_name="finalist_registration",
+    )
+    semester = models.ForeignKey(
+        "organizations.Semester",
+        on_delete=models.PROTECT,
+        related_name="finalist_registrations",
+    )
+    program = models.CharField(max_length=200, blank=True)
+    year_of_study = models.PositiveIntegerField(default=4)
+    expected_graduation_date = models.DateField(null=True, blank=True)
+    bio = models.TextField(blank=True, help_text="Brief bio for the farewell booklet")
+    parent_contact = models.CharField(max_length=100, blank=True, help_text="For farewell dinner coordination")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+    registered_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="approved_finalists",
+    )
+
+    class Meta:
+        db_table = "members_finalistregistration"
+        ordering = ["-registered_at"]
+
+    def __str__(self):
+        return f"{self.member.full_name} — {self.semester}"

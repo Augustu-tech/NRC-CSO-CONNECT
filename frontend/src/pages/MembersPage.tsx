@@ -28,7 +28,7 @@ export default function MembersPage() {
   const { me } = useAuth();
   const [rows, setRows] = useState<Member[]>([]);
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ACTIVE");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
@@ -171,7 +171,7 @@ export default function MembersPage() {
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200">
-        {["ALL", "ACTIVE", "INACTIVE"].map((status) => (
+        {["ACTIVE", "INACTIVE", "GRADUATED", "ALL"].map((status) => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
@@ -180,7 +180,13 @@ export default function MembersPage() {
                 ? "border-faith-600 text-faith-700" 
                 : "border-transparent text-slate-500 hover:text-slate-700"}`}
           >
-            {status === "ALL" ? "All Members" : status === "INACTIVE" ? "Pending Approval" : "Active"}
+            {status === "ALL" 
+              ? "All Members" 
+              : status === "INACTIVE" 
+                ? "Pending Approval" 
+                : status === "GRADUATED"
+                  ? "Graduated"
+                  : "Active"}
             {status === "INACTIVE" && rows.filter(r => r.status === "INACTIVE").length > 0 && (
               <span className="ml-2 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
                 {rows.filter(r => r.status === "INACTIVE").length}
@@ -256,12 +262,14 @@ export default function MembersPage() {
                               <CheckCircle2 size={14} /> Approve
                             </button>
                           )}
-                          <button
-                            onClick={() => setTransferMemberObj(m)}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-faith-600 hover:text-faith-900 px-2 py-1 rounded hover:bg-faith-50 transition"
-                          >
-                            <ArrowRightLeft size={14} /> Transfer
-                          </button>
+                          {m.status === "ACTIVE" && (
+                            <button
+                              onClick={() => setTransferMemberObj(m)}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-faith-600 hover:text-faith-900 px-2 py-1 rounded hover:bg-faith-50 transition"
+                            >
+                              <ArrowRightLeft size={14} /> Transfer
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}

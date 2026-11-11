@@ -91,7 +91,39 @@ export default function ProfilePage() {
   };
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading profile…</div>;
-  if (error) return <Card className="p-8 text-center text-red-600">{error}</Card>;
+  
+  if (error) {
+    // Custom message per role
+    if (me?.role === "secretary" || me?.role === "vice_secretary" || me?.role === "publicity_secretary") {
+      return (
+        <div className="p-8 max-w-xl mx-auto">
+          <Card className="p-8 text-center">
+            <h2 className="text-lg font-bold text-slate-900 mb-2">Your account is for administrative work</h2>
+            <p className="text-sm text-slate-600">
+              As a Secretary, you do not need a member profile. You manage the system, and your activities are recorded as staff work.
+            </p>
+            <p className="text-sm text-slate-500 mt-3">
+              If you also want to be scored as a member, ask the Super Admin to link your account to a member profile.
+            </p>
+          </Card>
+        </div>
+      );
+    }
+    // For everyone else
+    return (
+      <div className="p-8 max-w-xl mx-auto">
+        <Card className="p-8 text-center">
+          <h2 className="text-lg font-bold text-slate-900 mb-2">Profile not set up</h2>
+          <p className="text-sm text-slate-600">
+            Your account is not linked to a member profile yet. This is required for you to see your own participation, ranks, and contributions.
+          </p>
+          <p className="text-sm text-slate-500 mt-3">
+            Please contact the CSO Secretary or the Super Admin to link your account.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   const imageUrl = getMediaUrl((profile as any)?.profile_picture);
 

@@ -12,6 +12,7 @@ from apps.accounts import me_views as mev
 from apps.accounts.auth_views import CustomTokenObtainPairView, register, forgot_password, reset_password_confirm
 from apps.accounts.audit_views import AuditLogViewSet
 from apps.accounts.user_views import UserManagementViewSet
+from apps.members.finalist_views import FinalistRegistrationViewSet, finalist_window_status
 from apps.activities import dashboard_views as dash
 from apps.activities import export_views as exp
 
@@ -19,6 +20,7 @@ from apps.activities import export_views as exp
 router = DefaultRouter()
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 router.register("users", UserManagementViewSet, basename="user-management")
+router.register("finalists", FinalistRegistrationViewSet, basename="finalist")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -52,6 +54,7 @@ urlpatterns = [
     path("api/reports/financial/<int:semester_id>/<int:year>/<int:month>/", exp.financial_report_xlsx, name="report-financial-monthly"),
     
     # Audit Logs (Mounted under /api/)
+    path("api/finalists/window/", finalist_window_status, name="finalist-window"),
     path("api/", include(router.urls)),
 ]
 

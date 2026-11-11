@@ -255,3 +255,13 @@ export const updateCandidate = (id: number, data: any) => api.patch(`/candidates
 
 export const getUsers = () => api.get("/users/?page_size=200");
 export const updateUser = (id: number, data: any) => api.patch(`/users/${id}/`, data);
+
+// ---- Finalists ----
+export const getFinalistWindow = () => api.get("/finalists/window/");
+export const getFinalists = () => api.get("/finalists/?page_size=200");
+export const registerFinalist = (data: any) => api.post("/finalists/", data);
+export const approveFinalist = (id: number) => api.post(`/finalists/${id}/approve/`);
+export const rejectFinalist = (id: number) => api.post(`/finalists/${id}/reject/`);
+
+export const updateAnnouncement = (id: number, data: any) => api.patch(`/engagement/announcements/${id}/`, data);
+export const deleteAnnouncement = (id: number) => api.delete(`/engagement/announcements/${id}/`);

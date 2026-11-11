@@ -28,6 +28,19 @@ class Semester(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     is_active = models.BooleanField(default=True)
+    finalist_registration_open = models.BooleanField(
+        default=False,
+        help_text="Toggle to allow finalists to register for the farewell ceremony."
+    )
+    finalist_registration_deadline = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Finalists can only register before this date."
+    )
+    chaplain_signer = models.CharField(
+        max_length=200, blank=True,
+        default="CSO Chaplain",
+        help_text="Name of the chaplain who signs finalist certificates."
+    )
     academic_year = models.ForeignKey(
         AcademicYear, on_delete=models.PROTECT, related_name="semesters"
     )
