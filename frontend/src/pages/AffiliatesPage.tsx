@@ -9,6 +9,20 @@ import { EmptyState } from "../ui/EmptyState";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 
+function formatApiError(err: any): string {
+  const data = err?.response?.data;
+  if (!data) return err?.message || "Something went wrong.";
+  if (typeof data === "string") return data;
+  if (data.detail) return data.detail;
+  const parts: string[] = [];
+  for (const [key, val] of Object.entries(data)) {
+    const friendlyField = key === "non_field_errors" ? "" : key.replace(/_/g, " ").replace(/^./, c => c.toUpperCase()) + ": ";
+    const messages = Array.isArray(val) ? val.join(", ") : String(val);
+    parts.push(`${friendlyField}${messages}`);
+  }
+  return parts.join(" · ");
+}
+
 export default function AffiliatesPage() {
   const { me } = useAuth();
   const canManage = hasPerm(me, "affiliates.manage");
@@ -95,7 +109,7 @@ export default function AffiliatesPage() {
       setIsModalOpen(false);
       loadMemberships(selectedAff.id);
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || JSON.stringify(err.response?.data) || err.message);
+      setFormError(formatApiError(err));
     } finally {
       setSaving(false);
     }
@@ -208,7 +222,15 @@ export default function AffiliatesPage() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Add Member to ${selectedAff?.name}`}>
         <form onSubmit={handleAddMember} className="space-y-4">
-          {formError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{formError}</div>}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-4 rounded-lg flex items-start gap-3">
+              <span className="text-red-600 text-lg leading-none">⚠</span>
+              <div className="flex-1">
+                <p className="font-medium">Cannot add member</p>
+                <p className="text-xs mt-1 text-red-700">{formError}</p>
+              </div>
+            </div>
+          )}
           
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Select Member</label>

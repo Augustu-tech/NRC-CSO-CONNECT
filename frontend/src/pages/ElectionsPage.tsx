@@ -13,6 +13,22 @@ import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 import { EmptyState } from "../ui/EmptyState";
 
+function formatApiError(err: any): string {
+  const data = err?.response?.data;
+  if (!data) return err?.message || "Something went wrong. Please try again.";
+  if (typeof data === "string") return data;
+  if (data.detail) return data.detail;
+  // Django returns { field: [errors], non_field_errors: [errors] }
+  const parts: string[] = [];
+  for (const [key, val] of Object.entries(data)) {
+    const friendlyField = key === "non_field_errors" ? "" : key.replace(/_/g, " ").replace(/^./, c => c.toUpperCase()) + ": ";
+    const messages = Array.isArray(val) ? val.join(", ") : String(val);
+    parts.push(`${friendlyField}${messages}`);
+  }
+  return parts.join(" · ");
+}
+
+
 export default function ElectionsPage() {
   const { me } = useAuth();
   const isAdmin = me?.is_superuser || ["super_admin", "chairperson", "vice_chairperson", "secretary"].includes(me?.role || "");
@@ -69,7 +85,7 @@ export default function ElectionsPage() {
       setIsElectionModal(false);
       load();
     } catch (err: any) {
-      setFormError(JSON.stringify(err.response?.data || "Failed"));
+      setFormError(formatApiError(err));
     } finally { setSaving(false); }
   };
 
@@ -88,7 +104,7 @@ export default function ElectionsPage() {
       setIsPositionModal(false);
       load();
     } catch (err: any) {
-      setFormError(JSON.stringify(err.response?.data || "Failed"));
+      setFormError(formatApiError(err));
     } finally { setSaving(false); }
   };
 
@@ -106,7 +122,7 @@ export default function ElectionsPage() {
       setIsCandidateModal(false);
       load();
     } catch (err: any) {
-      setFormError(JSON.stringify(err.response?.data || "Failed"));
+      setFormError(formatApiError(err));
     } finally { setSaving(false); }
   };
 
@@ -125,7 +141,7 @@ export default function ElectionsPage() {
       setIsEditElectionModal(false);
       load();
     } catch (err: any) {
-      setFormError(JSON.stringify(err.response?.data || "Failed"));
+      setFormError(formatApiError(err));
     } finally { setSaving(false); }
   };
 
@@ -142,7 +158,7 @@ export default function ElectionsPage() {
       setIsEditCandidateModal(false);
       load();
     } catch (err: any) {
-      setFormError(JSON.stringify(err.response?.data || "Failed"));
+      setFormError(formatApiError(err));
     } finally { setSaving(false); }
   };
 
@@ -339,7 +355,15 @@ export default function ElectionsPage() {
 
       <Modal isOpen={isElectionModal} onClose={() => setIsElectionModal(false)} title="Create Election">
         <form onSubmit={handleCreateElection} className="space-y-4">
-          {formError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{formError}</div>}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-4 rounded-lg flex items-start gap-3">
+              <span className="text-red-600 text-lg leading-none">⚠</span>
+              <div className="flex-1">
+                <p className="font-medium">Cannot save</p>
+                <p className="text-xs mt-1 text-red-700">{formError}</p>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Title</label>
             <input name="title" required placeholder="e.g. 2027 CSO Elections" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
@@ -367,7 +391,15 @@ export default function ElectionsPage() {
 
       <Modal isOpen={isPositionModal} onClose={() => setIsPositionModal(false)} title="Add Position">
         <form onSubmit={handleCreatePosition} className="space-y-4">
-          {formError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{formError}</div>}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-4 rounded-lg flex items-start gap-3">
+              <span className="text-red-600 text-lg leading-none">⚠</span>
+              <div className="flex-1">
+                <p className="font-medium">Cannot save</p>
+                <p className="text-xs mt-1 text-red-700">{formError}</p>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Position Title</label>
             <input name="title" required placeholder="e.g. Chairperson" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
@@ -389,7 +421,15 @@ export default function ElectionsPage() {
 
       <Modal isOpen={isCandidateModal} onClose={() => setIsCandidateModal(false)} title="Add Candidate">
         <form onSubmit={handleCreateCandidate} className="space-y-4">
-          {formError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{formError}</div>}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-4 rounded-lg flex items-start gap-3">
+              <span className="text-red-600 text-lg leading-none">⚠</span>
+              <div className="flex-1">
+                <p className="font-medium">Cannot save</p>
+                <p className="text-xs mt-1 text-red-700">{formError}</p>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Select Member</label>
             <select name="member_id" required className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
@@ -413,7 +453,15 @@ export default function ElectionsPage() {
       {/* Edit Election Modal */}
       <Modal isOpen={isEditElectionModal} onClose={() => setIsEditElectionModal(false)} title="Edit Election">
         <form onSubmit={handleUpdateElection} className="space-y-4">
-          {formError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{formError}</div>}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-4 rounded-lg flex items-start gap-3">
+              <span className="text-red-600 text-lg leading-none">⚠</span>
+              <div className="flex-1">
+                <p className="font-medium">Cannot save</p>
+                <p className="text-xs mt-1 text-red-700">{formError}</p>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Title</label>
             <input name="title" defaultValue={selected?.title} required className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
@@ -454,7 +502,15 @@ export default function ElectionsPage() {
       {/* Edit Candidate Modal */}
       <Modal isOpen={isEditCandidateModal} onClose={() => setIsEditCandidateModal(false)} title="Edit Candidate">
         <form onSubmit={handleUpdateCandidate} className="space-y-4">
-          {formError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{formError}</div>}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-4 rounded-lg flex items-start gap-3">
+              <span className="text-red-600 text-lg leading-none">⚠</span>
+              <div className="flex-1">
+                <p className="font-medium">Cannot save</p>
+                <p className="text-xs mt-1 text-red-700">{formError}</p>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Select Member</label>
             <select name="member_id" defaultValue={editingCandidate?.member} required className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, User } from "lucide-react";
-import { getMyBallot, castVote, getMediaUrl } from "../api/client";
+import { getMyBallot, castVote, getMediaUrl, submitBallot } from "../api/client";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 
@@ -13,6 +13,7 @@ export default function VotePage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [success, setSuccess] = useState<string>("");
+  const [submittingBallot, setSubmittingBallot] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -43,6 +44,21 @@ export default function VotePage() {
   if (!data) return null;
 
   const allVoted = data.ballot.length > 0 && data.ballot.every((p: any) => p.my_vote);
+  const isSubmitted = data.is_submitted;
+
+  const handleSubmit = async () => {
+    if (!confirm("Submit your ballot? You will NOT be able to change your votes after this.")) return;
+    setSubmittingBallot(true);
+    try {
+      await submitBallot(Number(id));
+      alert("✅ Your ballot has been submitted. Thank you for voting!");
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || "Failed to submit ballot.");
+    } finally {
+      setSubmittingBallot(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -128,6 +144,24 @@ export default function VotePage() {
           </Card>
         );
       })}
+
+      {allVoted && isLive && !isSubmitted && (
+        <div className="sticky bottom-4 bg-white border-2 border-faith-300 rounded-xl p-4 shadow-lg">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">All votes cast</p>
+              <p className="text-xs text-slate-500">Once submitted, you cannot change your votes.</p>
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={submittingBallot}
+              className="bg-faith-700 hover:bg-faith-800 text-white font-semibold px-6 py-3 rounded-lg transition disabled:opacity-50"
+            >
+              {submittingBallot ? "Submitting…" : "Complete Voting"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

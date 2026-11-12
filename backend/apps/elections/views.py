@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.accounts.audit import log
-from .models import Election, Position, Candidate, Vote
+from .models import Election, Position, Candidate, Vote, BallotSubmission
 from .serializers import ElectionSerializer, PositionSerializer, CandidateSerializer
 
 
@@ -73,6 +73,25 @@ class ElectionViewSet(viewsets.ModelViewSet):
             "candidate": f"{candidate.member.first_name} {candidate.member.last_name}",
         })
 
+    @action(detail=True, methods=["post"])
+    def submit_ballot(self, request, pk=None):
+        """Lock the ballot — member confirms they're done voting."""
+        election = self.get_object()
+        member = getattr(request.user, "member", None)
+        if not member:
+            raise PermissionDenied("Your account is not linked to a member profile.")
+
+        if BallotSubmission.objects.filter(election=election, member=member).exists():
+            raise ValidationError("Your ballot is already submitted.")
+
+        # Require at least one vote before submitting
+        if not Vote.objects.filter(position__election=election, voter=member).exists():
+            raise ValidationError("You must cast at least one vote before submitting.")
+
+        BallotSubmission.objects.create(election=election, member=member)
+        log(request, "APPROVE", model=BallotSubmission, obj_repr=f"{member} submitted ballot for {election}")
+        return Response({"detail": "Your ballot has been submitted and locked."})
+
     @action(detail=True, methods=["get"])
     def my_ballot(self, request, pk=None):
         election = self.get_object()
@@ -102,6 +121,10 @@ class ElectionViewSet(viewsets.ModelViewSet):
                 "my_vote": my_votes.get(pos.id),
             })
 
+        is_submitted = False
+        if member:
+            is_submitted = BallotSubmission.objects.filter(election=election, member=member).exists()
+
         return Response({
             "election": election.title,
             "is_active": election.is_active,
@@ -109,6 +132,7 @@ class ElectionViewSet(viewsets.ModelViewSet):
             "end_time": election.end_time,
             "results_published": election.results_published,
             "ballot": ballot,
+            "is_submitted": is_submitted,
         })
 
     @action(detail=True, methods=["get"])

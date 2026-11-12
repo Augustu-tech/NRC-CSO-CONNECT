@@ -270,3 +270,5 @@ export const getFinalistCertificate = (id: number) => `/finalists/${id}/certific
 
 export const setSemesterChaplain = (id: number, chaplain_signer: string) =>
   api.post(`/organizations/semesters/${id}/set_chaplain/`, { chaplain_signer });
+
+export const submitBallot = (id: number) => api.post(`/elections/${id}/submit_ballot/`);

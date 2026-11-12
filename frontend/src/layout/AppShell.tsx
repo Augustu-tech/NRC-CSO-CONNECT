@@ -126,12 +126,12 @@ export default function AppShell() {
 
         <div className="border-t border-white/10 px-3 py-3 overflow-hidden">
           <div className="px-2 mb-2 whitespace-nowrap">
-            <p className="text-xs text-slate-400">Signed in as</p>
-            <p className="text-sm text-white font-medium truncate">
-              {me?.full_name || me?.username}
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Signed in as</p>
+            <p className="text-sm text-white font-semibold truncate mt-0.5">
+              {me?.full_name || me?.first_name || me?.username}
             </p>
-            <p className="text-[11px] text-faith-400 capitalize">
-              {me?.role.replace(/_/g, " ")}
+            <p className="text-[11px] text-gold-500 font-medium capitalize mt-0.5">
+              {me?.is_superuser ? "Super Administrator" : (me?.role || "member").replace(/_/g, " ")}
             </p>
           </div>
           <button

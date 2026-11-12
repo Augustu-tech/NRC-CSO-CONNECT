@@ -19,6 +19,23 @@ class CandidateSerializer(serializers.ModelSerializer):
     def get_vote_count(self, obj):
         return obj.votes.count()
 
+    def validate(self, data):
+        position = data.get("position") or (self.instance.position if self.instance else None)
+        member = data.get("member") or (self.instance.member if self.instance else None)
+        if position and member:
+            qs = Candidate.objects.filter(
+                position__election=position.election,
+                member=member,
+            )
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "This member is already a candidate for another position in this election. "
+                    "A member can only contest for one position per election."
+                )
+        return data
+
 
 class PositionSerializer(serializers.ModelSerializer):
     candidates = CandidateSerializer(many=True, read_only=True)

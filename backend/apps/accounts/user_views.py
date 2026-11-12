@@ -18,6 +18,18 @@ class UserAdminSerializer(serializers.ModelSerializer):
             return f"{obj.member.first_name} {obj.member.last_name}"
         return None
 
+    def validate(self, data):
+        role = data.get("role") or (self.instance.role if self.instance else "member")
+        member = data.get("member") if "member" in data else (self.instance.member if self.instance else None)
+        is_super = data.get("is_superuser", self.instance.is_superuser if self.instance else False)
+        # Only Super Admin is exempt from having a member link
+        if not is_super and not member:
+            raise serializers.ValidationError(
+                {"member": "Every account except Super Admin must be linked to a Member profile. "
+                           "Create a member first, then link them here."}
+            )
+        return data
+
 class UserManagementViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by("username")
     serializer_class = UserAdminSerializer

@@ -61,3 +61,18 @@ class Vote(models.Model):
 
     def __str__(self):
         return f"{self.voter.first_name} voted for {self.candidate.member.first_name} for {self.position.title}"
+
+
+
+class BallotSubmission(models.Model):
+    """Marks that a member has finished voting. Once submitted, no more changes."""
+    election = models.ForeignKey(Election, on_delete=models.CASCADE, related_name="submissions")
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="ballot_submissions")
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "elections_ballotsubmission"
+        unique_together = ("election", "member")
+
+    def __str__(self):
+        return f"{self.member} — {self.election}"
